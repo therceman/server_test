@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Request Time Test</title>
+</head>
+<body>
+<div id="requestStats" style="font-size: 24px; text-align: center;"></div>
+<br>
+<div id="serverRegion" style="font-size: 20px; text-align: center;"></div>
+<div id="userLocation" style="font-size: 20px; text-align: center;"></div>
+<script>
+    const requestTimes = [];
+    const totalRequests = 10; // Number of requests to make
+
+    function fetchWithTiming(url) {
+        const startTime = performance.now();
+        return fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const endTime = performance.now();
+                const requestTime = endTime - startTime;
+                requestTimes.push(requestTime);
+                return data; // Return data for additional processing
+            });
+    }
+
+    function calculateStats() {
+        const sum = requestTimes.reduce((a, b) => a + b, 0);
+        const average = sum / requestTimes.length;
+        const min = Math.min(...requestTimes);
+        const max = Math.max(...requestTimes);
+
+        return { average, min, max };
+    }
+
+    async function performRequests() {
+        document.getElementById('requestStats').innerHTML = 'Loading .';
+
+        for (let i = 0; i < totalRequests; i++) {
+            const data = await fetchWithTiming('/latency-test');
+            document.getElementById('requestStats').innerHTML += '.';
+
+            // Process the first response for location data
+            if (i === 0) {
+                const userIp = data.user_ip;
+
+                document.getElementById('serverRegion').innerHTML = `Server Region: ${data.region}`;
+
+                fetch(`https://ipinfo.io/${userIp}/json`)
+                    .then(response => response.json())
+                    .then(locationData => {
+                        document.getElementById('userLocation').innerHTML = `User Location: ${locationData.country}, ${locationData.region}, ${locationData.city}`;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching user location:', error);
+                        document.getElementById('userLocation').innerHTML = 'Error fetching user location';
+                    });
+            }
+        }
+
+        const stats = calculateStats();
+        document.getElementById('requestStats').innerHTML = `
+            <b>Average Request Time: ${stats.average.toFixed(3)} ms</b><br><br>
+            Min Request Time: ${stats.min.toFixed(3)} ms<br>
+            Max Request Time: ${stats.max.toFixed(3)} ms<br>
+            Total Requests Made: ${totalRequests}<br>
+        `;
+    }
+
+    performRequests();
+</script>
+</body>
+</html>
